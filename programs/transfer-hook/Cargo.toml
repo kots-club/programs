@@ -1,0 +1,115 @@
+# kots-contracts/programs/transfer-hook/Cargo.toml
+[package]
+name = "transfer-hook"
+version = "0.1.0"
+description = "KOTS Token-2022 Transfer Hook with hybrid SOL/KOTS fee system"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "transfer_hook"
+
+[features]
+default = []
+# C1 / D11: feature unification requires this in EVERY crate, not just
+# kots-common — otherwise one crate compiles Dev while another compiles Main.
+realm-main = ["kots-common/realm-main", "security-governance/realm-main"]
+# C3 / D1. The SOL-denominated sell-fee subsystem, OFF by default.
+#
+# D1 defers this path rather than abandoning it: fees are KOTS-denominated at
+# launch, and the SOL debt mechanism is not operated. The 2026-07-23 audit found
+# collect_sell_fee_debt_part2 carried `close = keeper` with an unbound keeper —
+# any wallet, including the debtor, could delete an owner's debt and pocket the
+# rent, making the 3% sell tax permissionlessly evadable. That is fixed, but the
+# code's own note beside the fix still reads: even a validated keeper is TRUSTED
+# to have collected the SOL off-chain. Shipping an unoperated, trust-dependent
+# money path is unnecessary risk.
+#
+# Gating also shrinks the deployed binary — the hook is the largest program in
+# the set — which reduces one-time deploy rent.
+sol-fees = []
+# ⚠ O32 PROBE — TEMPORARY, ADDED 2026-07-29, REMOVE WHEN O32 CLOSES.
+#
+# Omits `refund_queue` from extra_account_metas so the heap ladder can tell
+# apart two explanations for the OOM that survived shrinking the queue to 128
+# entries: either the queue is the binding constraint, or it never was and the
+# meta list must lose accounts instead. The resolver runs before the hook body,
+# so the failure MODE discriminates. See the gate in lib.rs.
+#
+# OFF BY DEFAULT and must stay that way — the meta list is written ON-CHAIN, and
+# a mint initialized from a probe build needs a migration to fix, not an edit.
+#
+#   cd programs/transfer-hook && cargo build-sbf --features o32-probe
+o32-probe = []
+
+# ⚠ O32 BISECTION — TEMPORARY, ADDED 2026-07-29, REMOVE WHEN O32 CLOSES.
+#
+# Capacity 128 is measured to OOM (13,227 B copied); no queue at all is measured
+# to survive (7,027 B). Nothing between is tested. These select a capacity so
+# `ops/o32-bisect.sh` can narrow the window WITHOUT editing source between runs
+# — the `fix_source_to_match_deployment.sh` pattern in _debris is what happens
+# when a sweep is done by sed.
+#
+# Mutually exclusive by construction in lib.rs (each cfg excludes the ones above
+# it), because two live `#[constant]` definitions emit the same Anchor symbol
+# twice — the E0428 that bit this constant earlier today.
+#
+# DEFAULT (no feature) = 64. Provisional, not a result.
+queue-cap-1 = []   # EXPERIMENT A: 104 B, the smallest queue that can exist
+queue-cap-8 = []   # EXPERIMENT B: 440 B, fits all four legs without overflow
+queue-cap-16 = []
+queue-cap-32 = []
+queue-cap-128 = []
+queue-cap-256 = []
+cpi = []
+bpf-runtime = ["kots-common/bpf-runtime", "security-governance/bpf-runtime"]
+idl-build = ["anchor-spl/idl-build", "kots-common/idl-build", "security-governance/idl-build"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+# Declared so Anchor's #[program] macro expansion does not trip the
+# `unexpected_cfgs` lint (Rust 1.80+). The macro emits #[cfg(feature = "...")]
+# for all of these; an undeclared feature is a warning, not an error, but 165 of
+# them across the workspace drowned out the warnings that actually mattered.
+# (2026-07-22)
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+
+[dependencies]
+anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
+kots-common = { workspace = true, default-features = false, features = ["cpi"] }
+# ACT-03 (F6): whitelist edits (add/remove_to_whitelist) are gated on the
+# security-governance owner registry. We depend on that program ONLY for the
+# `OwnerRegistry` account TYPE, so Anchor verifies the owning program +
+# discriminator + PDA automatically rather than us hand-rolling it in a
+# security gate. `no-entrypoint` keeps its entrypoint symbol out of this crate
+# (only the referenced type survives DCE); the realm-main / bpf-runtime /
+# idl-build features are forwarded above so it compiles for the same realm as
+# the rest of the workspace (the C1/D11 unification rule).
+security-governance = { path = "../security-governance", default-features = false, features = ["no-entrypoint"] }
+bytemuck = { version = "1.14", features = ["derive"] }
+# BUILD FIX (2026-07-23): was `solana-program = "2.0.17"` — a CARET requirement
+# that floated to 2.3.0 and dragged the workspace MSRV to 1.79. This crate DOES
+# use `solana_program::` directly (9 sites in lib.rs), so the dependency stays,
+# but it now follows the single workspace pin instead of resolving on its own.
+solana-program = { workspace = true }
+spl-token-2022 = { version = "6.0.0", features = ["no-entrypoint"] }
+spl-transfer-hook-interface = "0.9.0"
+spl-tlv-account-resolution = "0.9.0"
+pyth-solana-receiver-sdk = "0.2.0"
+borsh = { workspace = true }
+
+# BUILD FIX v2 (2026-07-23): [dev-dependencies] `solana-sdk = "2.0.17"` removed.
+# `solana_sdk` is never referenced in this crate. It is the same unused, graph-
+# constraining dev-dep that broke resolution in lp-position-manager once pinned.
+# Left as a caret it merely floated; removed, it constrains nothing.
+
+[lints.rust]
+# `target_os = "solana"` is real when cargo-build-sbf compiles for the SBF
+# target, but cargo's check-cfg lint does not know the value exists when
+# building for the host, so every #[cfg(not(target_os = "solana"))] warns
+# "unexpected cfg condition value". Declaring the value teaches the lint about
+# it — this is NOT a blanket suppression: any OTHER unexpected cfg still warns.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

@@ -1,0 +1,68 @@
+# ============================================================================
+# INERT — THIS FILE IS NOT USED BY THE WORKSPACE BUILD (noted 2026-07-22)
+#
+# The workspace member is the PARENT package (`tests/Cargo.toml`,
+# kots-comprehensive-tests). That package's lib.rs does `pub mod devnet_idl_tests;`,
+# so the sources here compile as MODULES OF THE PARENT, using the PARENT's
+# dependencies. Cargo never reads this manifest (it declares its own empty
+# [workspace] to stay standalone).
+#
+# => Editing dependencies HERE changes nothing. Add them to ../Cargo.toml instead.
+#    This file is kept only as the portable template described below.
+# ============================================================================
+
+# KOTS Multiprogram Test Suite - Cargo.toml Template
+#
+# This file serves as a template for setting up the test suite in external projects.
+# When copying this directory to other projects, adjust the dependency paths to match
+# your project structure.
+#
+# Example usage:
+# 1. Copy this entire directory to your project
+# 2. Update the path dependencies below to point to your KOTS program locations
+# 3. Run: cargo test
+
+[package]
+name = "kots-devnet-idl-tests"
+version = "1.0.0"
+edition = "2021"
+description = "Self-contained KOTS multiprogram test suite for external integration examples"
+
+# Empty workspace table to make this package standalone
+[workspace]
+
+[lib]
+name = "kots_devnet_idl_tests"
+path = "mod.rs"
+
+[features]
+default = []
+devnet-network = []
+mainnet-network = []
+
+[dependencies]
+# Core dependencies - using same versions as workspace to avoid yanked crates
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+anchor-spl = "0.31.1"
+solana-program = "2.1.0"
+solana-program-test = "2.1.0"
+solana-sdk = "2.1.0"
+solana-client = "2.1.0"
+solana-rpc-client = "2.1.0"
+spl-token = { version = "7.0.0", features = ["no-entrypoint"] }
+tokio = { version = "1.0", features = ["full"] }
+
+# KOTS program dependencies - UPDATE THESE PATHS for your project structure
+contest-management = { path = "../../programs/contest-management" }
+voting-hieroglyph = { path = "../../programs/voting-hieroglyph" }
+fee-management = { path = "../../programs/fee-management" }
+progressive-jackpot = { path = "../../programs/progressive-jackpot" }
+treasury-operations = { path = "../../programs/treasury-operations" }
+prize-distribution = { path = "../../programs/prize-distribution" }
+security-governance = { path = "../../programs/security-governance" }
+kots-common = { path = "../../shared/kots-common" }
+
+[dev-dependencies]
+serial_test = "3.0"
+pretty_assertions = "1.0"
+hex = "0.4"

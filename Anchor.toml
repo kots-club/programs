@@ -1,0 +1,128 @@
+# BUILD FIX (2026-07-23)
+#
+# `anchor build` failed with:
+#     error: failed to parse lock file ... lock file version 4 requires
+#     `-Znext-lockfile-bump`
+#
+# Cargo.lock is v4, which needs cargo >= 1.78. The toolchain doing the build was
+# older, because NOTHING here pinned it — see below.
+#
+# Removed from this file:
+#   * a stray top-level `anchor_version` duplicating the one in [toolchain]
+#   * `[build] rust-version = "1.75.0"` — DEAD CONFIG. Anchor 0.31.1's
+#     BuildConfig has only { verifiable, solana_version, docker_image,
+#     bootstrap } and ToolchainConfig only { anchor_version, solana_version,
+#     package_manager }. There is no rust version key in either, so Anchor
+#     silently ignored this line. It selected nothing; it only documented a
+#     requirement that is no longer true (see the MSRV note below).
+#
+# Added: an explicit `solana_version`, so the platform-tools (and therefore the
+# Rust/cargo doing the build) is pinned by the repo instead of inherited from
+# whatever each developer happens to have installed.
+
+[toolchain]
+anchor_version = "0.31.1"
+# MSRV NOTE: Cargo.lock resolves solana-program to 2.3.0, whose declared MSRV is
+# 1.79.0 — NOT the 1.75.0 this file used to claim. (1.75.0 was correct for
+# solana-program 2.0.17, which is what programs/*/Cargo.toml still ask for; that
+# requirement floats and no longer resolves there. See Cargo.toml.)
+# Solana 2.1.x platform-tools ships a Rust new enough for both the 1.79 MSRV and
+# the v4 lockfile. Verify locally with:  cargo-build-sbf --version
+solana_version = "2.1.0"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+# The ID law (CLAUDE.md "Program IDs are permanent"): these addresses are
+# FIXED. Every deployment is an upgrade in place. Never regenerate a keypair
+# for a program listed here — the keypair IS the ID, and losing it loses the
+# address forever.
+#
+# testnet/mainnet sections are DELETED ON PURPOSE. `anchor keys sync` walks
+# BTreeMap<Cluster,..> (Testnet < Mainnet < Devnet < Localnet) and `break
+# 'outer`s after the FIRST wrong entry — so with four sections it "synced"
+# testnet + mainnet on 2026-07-16 and left devnet on the abandoned v3.9.2 ids.
+# It also wrote a DEVNET-derived id into [programs.mainnet], which is exactly
+# the realm crossing ops/README.md exists to prevent. Mainnet ids are
+# offline-generated at the ceremony (ops/main/README.md) and do NOT belong in
+# this file. localnet mirrors devnet so a sync finds nothing to "fix".
+
+[programs.devnet]
+contest_management = "FMKwB7AnhwHJLq5fphVYJcxZnRf72ECaHdkYApw3yn91"
+fee_management = "8rLAaxGjPpBQJXDT73XnsbHtFSgYkksfEgJ76zvcspHt"
+lp_position_manager = "CaxiD5ViyLyFsX2ogRaStgFi2R3FdTM5t1BiRqeSQRGP"
+prize_distribution = "GDrCv9tAh9scvxCTe3XD1N2Xdj2pQYhBtYo68hfDXJqk"
+progressive_jackpot = "7xSq4Fk84ib2195fMnmiwCN9ZyMj6jEp1pimsZicJH6y"
+security_governance = "3EKVa1rSd4cTXB2VT4gWwYfDGjM3m5nw4EYP2jvCb28H"
+transfer_hook = "2hqT83nFSaR8U4KDyFw9557A5W2FNsWHXmqSb5DuSxiH"
+treasury_operations = "33LbYv6dGKegxAVNAFWx1An4HtGCacXvEMUy28ZXJvvs"
+voting_hieroglyph = "FzGbgXetN5jqZAktTr8KJ2D1BGmYx5kw2Lrp9cJNUArN"
+kots_amm = "4icU4NTh948G2D3bkniojKjUr7fi5MdmbexUEaSyjEx6"
+
+# Mainnet addresses (recorded 2026-10-03 from the M10 sitting, 2026-09-11, and
+# the chain: `solana program show` lists the Squads vault as upgrade authority).
+# A program missing here has NO mainnet address (lp_position_manager: Stage 2).
+# `make verify-ids-main` checks every realm-main declare_id!() against this.
+[programs.mainnet]
+contest_management = "CdtbPRx3ghk8vjjuXShsKMPeoLXCpqTYDDZHQBsamrXe"
+fee_management = "9UrtrL9uCJVKDGNRTvTMEz2pVD9ogLRuiKBmGheRX2PY"
+prize_distribution = "gQPejCrRxr6y824vTMZ7ad33uwp95L1rRxXMGftBAxa"
+progressive_jackpot = "CAccwwWNqJxCRxuvqQTwXnokVEbUmPCoJX5hibWWnHKg"
+security_governance = "FdsHe63kHRy2BBLHyaZZtJEccKqi9g1EevmhjiLhbB7A"
+transfer_hook = "QGYMHWiDQBLi9EZZSTMgEoE6sxKt9Y13kDCsARqG8Qt"
+treasury_operations = "2A9B5KLWVPbHU36d6eSehxu68Bz5eyPJ5xJz1riKzb98"
+voting_hieroglyph = "HZavpBFJgdoCSzBsiaZqHqB68VoushL1i98zPfr3BiAe"
+kots_amm = "A3RqZnYWUtHhuDJzRhZzyEECbpktwiorXZ7GSahqnbGz"
+
+[programs.localnet]
+contest_management = "FMKwB7AnhwHJLq5fphVYJcxZnRf72ECaHdkYApw3yn91"
+fee_management = "8rLAaxGjPpBQJXDT73XnsbHtFSgYkksfEgJ76zvcspHt"
+lp_position_manager = "CaxiD5ViyLyFsX2ogRaStgFi2R3FdTM5t1BiRqeSQRGP"
+prize_distribution = "GDrCv9tAh9scvxCTe3XD1N2Xdj2pQYhBtYo68hfDXJqk"
+progressive_jackpot = "7xSq4Fk84ib2195fMnmiwCN9ZyMj6jEp1pimsZicJH6y"
+security_governance = "3EKVa1rSd4cTXB2VT4gWwYfDGjM3m5nw4EYP2jvCb28H"
+transfer_hook = "2hqT83nFSaR8U4KDyFw9557A5W2FNsWHXmqSb5DuSxiH"
+treasury_operations = "33LbYv6dGKegxAVNAFWx1An4HtGCacXvEMUy28ZXJvvs"
+voting_hieroglyph = "FzGbgXetN5jqZAktTr8KJ2D1BGmYx5kw2Lrp9cJNUArN"
+kots_amm = "4icU4NTh948G2D3bkniojKjUr7fi5MdmbexUEaSyjEx6"
+
+[[test.genesis]]
+address = "FMKwB7AnhwHJLq5fphVYJcxZnRf72ECaHdkYApw3yn91"
+program = "target/deploy/contest_management.so"
+
+[[test.genesis]]
+address = "FzGbgXetN5jqZAktTr8KJ2D1BGmYx5kw2Lrp9cJNUArN"
+program = "target/deploy/voting_hieroglyph.so"
+
+[[test.genesis]]
+address = "8rLAaxGjPpBQJXDT73XnsbHtFSgYkksfEgJ76zvcspHt"
+program = "target/deploy/fee_management.so"
+
+[[test.genesis]]
+address = "GDrCv9tAh9scvxCTe3XD1N2Xdj2pQYhBtYo68hfDXJqk"
+program = "target/deploy/prize_distribution.so"
+
+[[test.genesis]]
+address = "7xSq4Fk84ib2195fMnmiwCN9ZyMj6jEp1pimsZicJH6y"
+program = "target/deploy/progressive_jackpot.so"
+
+[[test.genesis]]
+address = "33LbYv6dGKegxAVNAFWx1An4HtGCacXvEMUy28ZXJvvs"
+program = "target/deploy/treasury_operations.so"
+
+[[test.genesis]]
+address = "3EKVa1rSd4cTXB2VT4gWwYfDGjM3m5nw4EYP2jvCb28H"
+program = "target/deploy/security_governance.so"
+
+[[test.genesis]]
+address = "CaxiD5ViyLyFsX2ogRaStgFi2R3FdTM5t1BiRqeSQRGP"
+program = "target/deploy/lp_position_manager.so"
+
+[test]
+startup_wait = 5000
+shutdown_wait = 2000
+validator_lifetime = 30000

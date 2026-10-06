@@ -1,0 +1,67 @@
+[package]
+name = "lp-position-manager"
+version = "0.1.0"
+description = "KOTS Protocol-Owned Liquidity Position Manager for Raydium CLMM"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "lp_position_manager"
+
+[features]
+default = []
+# C1 / D11 + SINGLE SOURCE (2026-08-07). lp now DEPENDS on kots-common so it can
+# read the canonical fee-distribution wallets from kots_common::constants instead
+# of hardcoding its own copy. It therefore forwards the realm feature like the
+# other eight crates, so a mainnet build compiles this crate's kots-common view
+# as Main rather than Dev.
+realm-main = ["kots-common/realm-main"]
+cpi = []
+bpf-runtime = ["kots-common/bpf-runtime"]
+idl-build = ["anchor-spl/idl-build", "kots-common/idl-build"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+# Declared so Anchor's #[program] macro expansion does not trip the
+# `unexpected_cfgs` lint (Rust 1.80+). The macro emits #[cfg(feature = "...")]
+# for all of these; an undeclared feature is a warning, not an error, but 165 of
+# them across the workspace drowned out the warnings that actually mattered.
+# (2026-07-22)
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+
+[dependencies]
+anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
+# SINGLE SOURCE (2026-08-07): the canonical fee-distribution wallets live in
+# kots_common::constants; this crate reads them instead of hardcoding copies.
+kots-common = { workspace = true, default-features = false, features = ["cpi"] }
+# BUILD FIX (2026-07-23): `solana-program = "2.0.17"` removed. This crate never
+# referenced `solana_program::` even once, so the dependency did nothing except
+# emit Anchor's "Adding `solana-program` as a separate dependency might cause
+# conflicts" warning and float the whole workspace's solana-program resolution
+# (^2.0.17 -> 2.3.0), which moved the MSRV to 1.79 and broke the build.
+# If this crate ever needs it, use `anchor_lang::solana_program` instead.
+spl-token-2022 = { version = "6.0.0", features = ["no-entrypoint"] }
+borsh = { workspace = true }
+
+# BUILD FIX v2 (2026-07-23): [dev-dependencies] removed entirely.
+#
+# It held `solana-sdk = "2.0.17"`. My first pass pinned that to "=2.1.0", which
+# was WRONG and caused:
+#
+#     error: failed to select a version for `solana-program`.
+#         ... required by package `solana-sdk v2.1.0`
+#         previously selected package `solana-program v2.3.0`
+#
+# solana-sdk 2.1.0 hard-requires solana-program =2.1.0, which collides with the
+# 2.3.0 that `tests/Cargo.toml` pulls in (it asks for solana-program = "2.3" and
+# solana-sdk = "2.3"). The original caret floated and happened to resolve; the
+# pin removed that slack and broke it.
+#
+# The correct fix is deletion, not a different version: `solana_sdk` is never
+# referenced anywhere in this crate. The one `#[cfg(test)]` module (split.rs)
+# does not use it. An unused dev-dependency that constrains the graph is pure
+# downside — this is the same class of problem as the unused `solana-program`
+# dep removed above.

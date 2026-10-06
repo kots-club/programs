@@ -1,0 +1,119 @@
+# DESTINATION (where this file goes): tests/Cargo.toml
+# kots-contracts/tests/Cargo.toml
+[package]
+name = "kots-comprehensive-tests"
+version = "0.1.0"
+edition = "2021"
+
+# The crate root is lib.rs at the PACKAGE ROOT, not the cargo default of
+# src/lib.rs. Without this override cargo finds NO lib target, so lib.rs — and
+# every module it pulls in under devnet_idl_tests/ — is silently never compiled.
+# That is why 155 test functions could sit here indefinitely without anyone
+# noticing they neither ran nor built. (2026-07-22)
+[lib]
+name = "kots_comprehensive_tests"
+path = "lib.rs"
+
+# test_utils.rs gates its RPC-backed context on these. Undeclared features make
+# `cfg(feature = "...")` silently false and (on newer cargo) emit unexpected-cfg
+# warnings; declaring them keeps the default in-process ProgramTest path honest
+# and makes the live-cluster variants selectable.
+[features]
+default = []
+devnet-network = []
+mainnet-network = []
+# legacy-suite (2026-07-23): the 155 devnet_idl_tests. Quarantined — see
+# devnet_idl_tests/mod.rs for why. Off by default so the signal from
+# `security_regressions` is not buried.
+legacy-suite = []
+
+# O32 bisection pass-throughs (2026-07-29, temporary). The test crate links
+# transfer-hook as a HOST lib while the harness loads the SBF .so, and
+# money_movement sizes the queue account from the host lib's
+# size_of::<PendingRefundQueue>(). If the two disagree the account is created at
+# one size and initialize_refund_queue rejects it — fail-closed, but confusing.
+# These keep both halves on the same capacity:
+#
+#   cargo test -p kots-comprehensive-tests --features queue-cap-32 ...
+queue-cap-1 = ["transfer-hook/queue-cap-1"]
+queue-cap-8 = ["transfer-hook/queue-cap-8"]
+queue-cap-16 = ["transfer-hook/queue-cap-16"]
+queue-cap-32 = ["transfer-hook/queue-cap-32"]
+queue-cap-128 = ["transfer-hook/queue-cap-128"]
+queue-cap-256 = ["transfer-hook/queue-cap-256"]
+o32-probe = ["transfer-hook/o32-probe"]
+
+[dependencies]
+# Anchor framework
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+anchor-client = "0.31.1"
+anchor-spl = "0.31.1"
+
+# Solana dependencies with proper nonblocking RPC client
+solana-sdk = "2.3"
+solana-program = "2.3"
+solana-client = "2.3"
+solana-rpc-client = "2.3"
+
+# In-process test validator (ProgramTest / BanksClient). test_utils.rs imports
+# this on line 10; it was missing, so the suite could not have compiled even if
+# cargo had found the lib target above.
+solana-program-test = "2.3"
+
+# spl_token::{id, instruction} is used directly by test_utils.rs (mint setup).
+spl-token = { version = "7.0.0", features = ["no-entrypoint"] }
+
+# test_utils.rs calls spl_associated_token_account::{get_associated_token_address,
+# instruction::create_associated_token_account, id} directly — it was never
+# declared, giving E0433 "unresolved module or unlinked crate". (2026-07-22)
+spl-associated-token-account = { version = "6.0.0", features = ["no-entrypoint"] }
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# Program dependencies
+#
+# NOTE (updated 2026-08-08): transfer-hook is a dependency because
+# money_movement.rs routes real Token-2022 transfers through it in-process. As of
+# 2026-08-08 lp-position-manager is ALSO a dependency: lp_movement.rs (Track-A)
+# proves distribute_kots_lp_fees_part4 moves KOTS through the hook under the
+# manager PDA's authority. It was previously omitted precisely because no test
+# referenced it; that gap is now closed rather than disguised.
+kots-common = { path = "../shared/kots-common" }
+transfer-hook = { path = "../programs/transfer-hook", features = ["no-entrypoint"] }
+# Client-side Token-2022: mint/account creation with the TransferFeeConfig and
+# TransferHook extensions, and StateWithExtensions parsing for the withheld-fee
+# assertions. 6.0.0 = the version anchor-spl 0.31.1 and the hook itself already
+# resolve to in Cargo.lock, so this adds no new graph node.
+spl-token-2022 = { version = "6.0.0", features = ["no-entrypoint"] }
+# `no-entrypoint` is REQUIRED here (2026-07-22). Anchor's #[program] macro emits a
+# `solana_program::entrypoint!` gated on `#[cfg(not(feature = "no-entrypoint"))]`.
+# Linking seven programs into one test binary without it produces seven competing
+# entrypoint symbols and `linking with cc failed`. The feature is also simply
+# correct now: the harness loads compiled .so files rather than calling `entry`,
+# so the entrypoints are dead weight in this crate.
+contest-management = { path = "../programs/contest-management", features = ["no-entrypoint"] }
+treasury-operations = { path = "../programs/treasury-operations", features = ["no-entrypoint"] }
+voting-hieroglyph = { path = "../programs/voting-hieroglyph", features = ["no-entrypoint"] }
+security-governance = { path = "../programs/security-governance", features = ["no-entrypoint"] }
+fee-management = { path = "../programs/fee-management", features = ["no-entrypoint"] }
+progressive-jackpot = { path = "../programs/progressive-jackpot", features = ["no-entrypoint"] }
+lp-position-manager = { path = "../programs/lp-position-manager", features = ["no-entrypoint"] }
+prize-distribution = { path = "../programs/prize-distribution", features = ["no-entrypoint"] }
+
+# Test utilities
+serde_json = "1.0"
+
+# refund_queue_capacity.rs constructs a PendingRefundQueue on the HOST via
+# Zeroable::zeroed(). PendingRefundQueue is #[account(zero_copy)], so it already
+# derives Pod/Zeroable through anchor; this declares the trait we call it
+# through rather than reaching into anchor's private re-export. Same 1.x line
+# the hook itself pins, so no new graph node.
+bytemuck = { version = "1.14", features = ["derive"] }
+
+# REMOVED (2026-07-22): four [[test]] targets — blockchain_init_tests,
+# fake_account_creation_test, treasury_funding_tests, fallback_scenario_tests —
+# each pointed at a .rs file that does not exist anywhere in the repo. Cargo
+# errors on a [[test]] whose path is missing, so these alone would have failed
+# any `cargo test` on this package. The 155 real test functions live in
+# devnet_idl_tests/ and are reached through the [lib] target above.

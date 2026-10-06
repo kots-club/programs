@@ -1,0 +1,8 @@
+[registries.crates-io]
+protocol = "sparse"
+
+[net]
+retry = 2
+
+[build]
+jobs = 2

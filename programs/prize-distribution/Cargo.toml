@@ -1,0 +1,39 @@
+[package]
+name = "prize-distribution"
+version = "1.0.0"
+description = "KOTS Prize & Award Distribution Program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "prize_distribution"
+
+[features]
+default = []
+# C1 / D11: feature unification requires this in EVERY crate, not just
+# kots-common — otherwise one crate compiles Dev while another compiles Main.
+realm-main = ["kots-common/realm-main"]
+cpi = []
+idl-build = ["anchor-spl/idl-build", "kots-common/idl-build"]
+bpf-runtime = ["kots-common/bpf-runtime"]
+# Network-specific features
+# Declared so Anchor's #[program] macro expansion does not trip the
+# `unexpected_cfgs` lint (Rust 1.80+). The macro emits #[cfg(feature = "...")]
+# for all of these; an undeclared feature is a warning, not an error, but 165 of
+# them across the workspace drowned out the warnings that actually mattered.
+# (2026-07-22)
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+
+[dependencies]
+anchor-lang = { workspace = true }
+# Required by Anchor's zero_copy macro for the LeaderboardAccumulator (2026-08-06).
+# Matches transfer-hook's version to keep the workspace lockfile consistent.
+bytemuck = { version = "1.14", features = ["derive", "min_const_generics"] }
+anchor-spl = { workspace = true }
+kots-common = { workspace = true, default-features = false, features = ["cpi"] }
+borsh = { workspace = true }

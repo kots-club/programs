@@ -1,0 +1,60 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "programs/contest-management",
+    "programs/voting-hieroglyph", 
+    "programs/fee-management",
+    "programs/prize-distribution",
+    "programs/progressive-jackpot",
+    "programs/treasury-operations",
+    "programs/security-governance",
+    "programs/transfer-hook",
+    "programs/lp-position-manager",
+    "programs/kots-amm",
+    "shared/kots-common",
+    "tests"
+]
+
+[workspace.dependencies]
+# Anchor framework - exact versions compatible with Docker v0.31.1
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+anchor-spl = { version = "0.31.1", default-features = false, features = ["token", "token_2022"] }
+
+# Shared common library
+kots-common = { path = "shared/kots-common", default-features = false, features = ["cpi"] }
+
+# Solana/SPL versions that align with anchor-spl 0.31.1 transitive dependencies
+#
+# BUILD FIX (2026-07-23): this pin was INERT. No crate referenced it via
+# `solana-program = { workspace = true }`, so `=2.1.0` constrained nothing.
+# What actually happened: programs/lp-position-manager and programs/transfer-hook
+# each declared `solana-program = "2.0.17"` — a CARET requirement (^2.0.17) that
+# floats — and cargo resolved the whole graph to solana-program 2.3.0.
+#
+# That float is what broke the build. 2.0.17 has MSRV 1.75.0, but 2.3.0 has MSRV
+# 1.79.0, so the toolchain requirement moved out from under a repo still
+# configured for 1.75.
+#
+# Pinned to the version actually in Cargo.lock so config and reality agree and
+# nothing re-resolves. If you would rather sit on 2.1.0, change this line, delete
+# Cargo.lock, rebuild, and RE-TEST — that re-resolves the whole graph, which is
+# not a change to make silently before a mainnet build.
+solana-program = "=2.3.0"
+spl-token = { version = "=7.0.0", features = ["no-entrypoint"] }
+
+# Serialization
+borsh = { version = "0.10.3", default-features = false }
+bytemuck = { version = "1.0", features = ["derive"], default-features = false }
+
+# Utilities  
+thiserror = "1.0"
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+debug = false
+strip = "symbols"

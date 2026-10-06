@@ -1,0 +1,37 @@
+[package]
+name = "kots-common"
+version = "1.0.0"
+edition = "2021"
+description = "Shared types and utilities for KOTS multi-program architecture"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = []
+# C1 / D11 (KOTS-MAINNET-PLAN). Compile-time realm selection. OFF by default:
+# a build without this flag resolves Realm::Dev and can never resolve Main.
+# Mainnet artifacts are built with `anchor build -- --features realm-main`.
+realm-main = []
+cpi = []
+no-entrypoint = []
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+idl-build = []
+bpf-runtime = []
+
+[dependencies]
+anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
+borsh = { workspace = true }
+bytemuck = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+
+[lints.rust]
+# `target_os = "solana"` is real when cargo-build-sbf compiles for the SBF
+# target, but cargo's check-cfg lint does not know the value exists when
+# building for the host, so every #[cfg(not(target_os = "solana"))] warns
+# "unexpected cfg condition value". Declaring the value teaches the lint about
+# it — this is NOT a blanket suppression: any OTHER unexpected cfg still warns.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
