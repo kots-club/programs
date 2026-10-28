@@ -112,7 +112,7 @@ impl ProgramIds {
 }
 
 /// **Realm dev — devnet.** Deployed 2026-07-15, upgraded in place 2026-07-16.
-/// These addresses do not change (CLAUDE.md, "Program IDs are permanent"). The
+/// These addresses do not change ("Program IDs are permanent"). The
 /// custody that keeps them is `target/deploy/*-keypair.json`, backed up outside
 /// the repo; losing one abandons that address forever.
 pub const DEV: ProgramIds = ProgramIds {

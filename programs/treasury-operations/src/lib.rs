@@ -639,11 +639,12 @@ pub mod treasury_operations {
         // Validate caller is a whitelisted KOTS program
         validate_kots_program_caller(&caller_program_id)?;
         
-        let total_needed = required_lamports + buffer_lamports;
+        // SVE1003: checked add
+        let total_needed = required_lamports.checked_add(buffer_lamports).ok_or(KotsError::ArithmeticOverflow)?;
         let incoming_balance = ctx.accounts.treasury_incoming.lamports();
         
         // Check if treasury_incoming has enough
-        if incoming_balance < total_needed + MIN_OPERATING_BALANCE {
+        if incoming_balance < total_needed.checked_add(MIN_OPERATING_BALANCE).ok_or(KotsError::ArithmeticOverflow)? {
             msg!("Treasury Incoming low, initiating auto-transfer");
             
             let main_balance = ctx.accounts.treasury_main.lamports();
@@ -685,13 +686,15 @@ pub mod treasury_operations {
         
         // Consolidate all available funds
         let mut total_available = 0u64;
-        total_available += ctx.accounts.treasury_incoming.lamports();
-        total_available += ctx.accounts.treasury_outgoing.lamports();
+        // SVE1003: checked adds
+        total_available = total_available.checked_add(ctx.accounts.treasury_incoming.lamports()).ok_or(KotsError::ArithmeticOverflow)?;
+        total_available = total_available.checked_add(ctx.accounts.treasury_outgoing.lamports()).ok_or(KotsError::ArithmeticOverflow)?;
         
         if total_available < required_lamports {
             // Last resort: record creator reimbursement
-            ctx.accounts.reimbursement_queue.pending_reimbursements += 1;
-            ctx.accounts.reimbursement_queue.total_owed += required_lamports;
+            // SVE1003: checked increments
+            ctx.accounts.reimbursement_queue.pending_reimbursements = ctx.accounts.reimbursement_queue.pending_reimbursements.checked_add(1).ok_or(KotsError::ArithmeticOverflow)?;
+            ctx.accounts.reimbursement_queue.total_owed = ctx.accounts.reimbursement_queue.total_owed.checked_add(required_lamports).ok_or(KotsError::ArithmeticOverflow)?;
             
             // Store reimbursement details (simplified for BPF)
             ctx.accounts.reimbursement_queue.last_creator = creator_pubkey;
@@ -875,7 +878,8 @@ pub mod treasury_operations {
         // Calculate total lamports needed
         let rent = Rent::get()?;
         let required_lamports = rent.minimum_balance(space as usize);
-        let total_needed = required_lamports + buffer_lamports;
+        // SVE1003: checked add
+        let total_needed = required_lamports.checked_add(buffer_lamports).ok_or(KotsError::ArithmeticOverflow)?;
         
         msg!("💰 Required lamports: {} (rent: {}, buffer: {})",
              total_needed, required_lamports, buffer_lamports);
@@ -964,8 +968,9 @@ pub mod treasury_operations {
         validate_kots_program_caller(&ctx.accounts.caller_program.key())?;
         
         // Transfer lamports from treasury_incoming to caller
-        **ctx.accounts.treasury_incoming.try_borrow_mut_lamports()? -= amount_lamports;
-        **ctx.accounts.caller_program.try_borrow_mut_lamports()? += amount_lamports;
+        // SVE1004 / SVE1003: checked sub/add
+        **ctx.accounts.treasury_incoming.try_borrow_mut_lamports()? = ctx.accounts.treasury_incoming.lamports().checked_sub(amount_lamports).ok_or(KotsError::ArithmeticOverflow)?;
+        **ctx.accounts.caller_program.try_borrow_mut_lamports()? = ctx.accounts.caller_program.lamports().checked_add(amount_lamports).ok_or(KotsError::ArithmeticOverflow)?;
         
         msg!("✅ Funded caller with {} lamports", amount_lamports);
         Ok(())
@@ -1017,8 +1022,9 @@ pub mod treasury_operations {
         
         // FIXED: Direct lamports reallocation (avoids "Transfer: from must not carry data" error)
         // Since treasury_incoming is a PDA with data, use direct lamports manipulation instead of SystemProgram::transfer
-        **ctx.accounts.treasury_incoming.try_borrow_mut_lamports()? -= amount_lamports;
-        **ctx.accounts.payer.try_borrow_mut_lamports()? += amount_lamports;
+        // SVE1004 / SVE1003: checked sub/add
+        **ctx.accounts.treasury_incoming.try_borrow_mut_lamports()? = ctx.accounts.treasury_incoming.lamports().checked_sub(amount_lamports).ok_or(KotsError::ArithmeticOverflow)?;
+        **ctx.accounts.payer.try_borrow_mut_lamports()? = ctx.accounts.payer.lamports().checked_add(amount_lamports).ok_or(KotsError::ArithmeticOverflow)?;
         
         msg!("✅ Reimbursed {} lamports to payer", amount_lamports);
         Ok(())
@@ -1042,7 +1048,8 @@ pub mod treasury_operations {
         // Calculate required lamports
         let rent = Rent::get()?;
         let required_lamports = rent.minimum_balance(space as usize);
-        let total_needed = required_lamports + buffer_lamports;
+        // SVE1003: checked add
+        let total_needed = required_lamports.checked_add(buffer_lamports).ok_or(KotsError::ArithmeticOverflow)?;
         
         // Check if treasury_incoming has enough balance (even if not properly owned)
         let incoming_balance = ctx.accounts.treasury_incoming.lamports();

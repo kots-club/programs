@@ -6,18 +6,7 @@ code. More on the project: [kots.club](https://kots.club).
 
 ## Programs
 
-| Program | Mainnet address |
-|---|---|
-| `contest_management` | [`CdtbPRx3ghk8vjjuXShsKMPeoLXCpqTYDDZHQBsamrXe`](https://explorer.solana.com/address/CdtbPRx3ghk8vjjuXShsKMPeoLXCpqTYDDZHQBsamrXe) |
-| `fee_management` | [`9UrtrL9uCJVKDGNRTvTMEz2pVD9ogLRuiKBmGheRX2PY`](https://explorer.solana.com/address/9UrtrL9uCJVKDGNRTvTMEz2pVD9ogLRuiKBmGheRX2PY) |
-| `prize_distribution` | [`gQPejCrRxr6y824vTMZ7ad33uwp95L1rRxXMGftBAxa`](https://explorer.solana.com/address/gQPejCrRxr6y824vTMZ7ad33uwp95L1rRxXMGftBAxa) |
-| `progressive_jackpot` | [`CAccwwWNqJxCRxuvqQTwXnokVEbUmPCoJX5hibWWnHKg`](https://explorer.solana.com/address/CAccwwWNqJxCRxuvqQTwXnokVEbUmPCoJX5hibWWnHKg) |
-| `security_governance` | [`FdsHe63kHRy2BBLHyaZZtJEccKqi9g1EevmhjiLhbB7A`](https://explorer.solana.com/address/FdsHe63kHRy2BBLHyaZZtJEccKqi9g1EevmhjiLhbB7A) |
-| `transfer_hook` | [`QGYMHWiDQBLi9EZZSTMgEoE6sxKt9Y13kDCsARqG8Qt`](https://explorer.solana.com/address/QGYMHWiDQBLi9EZZSTMgEoE6sxKt9Y13kDCsARqG8Qt) |
-| `treasury_operations` | [`2A9B5KLWVPbHU36d6eSehxu68Bz5eyPJ5xJz1riKzb98`](https://explorer.solana.com/address/2A9B5KLWVPbHU36d6eSehxu68Bz5eyPJ5xJz1riKzb98) |
-| `voting_hieroglyph` | [`HZavpBFJgdoCSzBsiaZqHqB68VoushL1i98zPfr3BiAe`](https://explorer.solana.com/address/HZavpBFJgdoCSzBsiaZqHqB68VoushL1i98zPfr3BiAe) |
-| `kots_amm` | [`A3RqZnYWUtHhuDJzRhZzyEECbpktwiorXZ7GSahqnbGz`](https://explorer.solana.com/address/A3RqZnYWUtHhuDJzRhZzyEECbpktwiorXZ7GSahqnbGz) |
-| `lp_position_manager` | not deployed on mainnet |
+{{PROGRAMS}}
 
 Every deployed program can be upgraded only by the project's Squads multisig
 `J3hS5w9FYsdHJ8R9SgM3quNCP4UbXQ1DsxZK7WXqAGiA`. Check any of them with

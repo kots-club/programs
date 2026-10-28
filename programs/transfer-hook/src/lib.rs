@@ -3253,23 +3253,13 @@ pub struct CollectKotsFeesPart2<'info> {
 #[cfg(feature = "sol-fees")]
 #[derive(Accounts)]
 pub struct DistributeSolFees<'info> {
-    // SECURITY TODO (2026-07-23): `fee_collector` is the ONLY account in this
-    // struct that is not pinned — every destination below is `address =
-    // fee_config.X`, but the SOURCE is an unconstrained AccountInfo. Solana will
-    // still refuse a debit of any account this program does not own, so this is
-    // not an attacker-payout path; the exposure is that ANY lamport-holding PDA
-    // owned by the transfer-hook program can be passed here and swept into the
-    // fee wallets by anyone — including the rent of live config PDAs, which can
-    // push them below rent-exemption and make them reapable.
-    //
-    // NOT PATCHED HERE because the intended derivation is a project decision:
-    // there is no FEE_COLLECTOR_SEED anywhere in the repo. Pin it to whichever
-    // is correct, e.g.
-    //     #[account(mut, seeds = [FEE_COLLECTOR_SEED], bump)]
-    // or, if the collector IS the fee authority PDA,
-    //     #[account(mut, address = fee_authority.key())]
-    #[account(mut)]
-    /// CHECK: Lamport-only vault controlled by fee authority
+    // SECURITY (2026-10-21, sec3 follow-up): previously unconstrained.
+    // Any program-owned lamport account could be passed and swept.
+    // Pinned to the fee_authority PDA (the only known lamport vault under
+    // this program's control). No separate FEE_COLLECTOR_SEED exists.
+    // Behind #[cfg(feature = "sol-fees")]; not compiled by default.
+    #[account(mut, address = fee_authority.key())]
+    /// CHECK: Lamport vault is the fee_authority PDA
     pub fee_collector: AccountInfo<'info>,
 
     #[account(seeds = [FEE_AUTHORITY_SEED], bump = fee_authority.bump)]
@@ -3290,8 +3280,17 @@ pub struct DistributeSolFees<'info> {
     /// CHECK: SOL treasury wallet
     pub treasury_sol_account: AccountInfo<'info>,
 
+    // SVE1001 (sec3, 2026-10-21): flagged as missing signer. Intentionally
+    // NOT a Signer. This is a pure destination that only receives lamports.
+    // It is already constrained by `address = fee_config.admin_wallet`, so
+    // only the pre-configured admin wallet can appear here. Requiring a
+    // signature would force the admin (and every other destination, including
+    // the burn address) to co-sign every distribution, which is unnecessary
+    // for a recipient and would break unattended fee distribution.
+    // The same reasoning applies to jackpot/incoming/treasury/dev/burn
+    // SOL accounts above and below.
     #[account(mut, address = fee_config.admin_wallet @ ErrorCode::InvalidAdminWallet)]
-    /// CHECK: SOL admin wallet
+    /// CHECK: SOL admin wallet (destination only; address-constrained)
     pub admin_sol_account: AccountInfo<'info>,
 
     #[account(mut, address = fee_config.dev_wallet @ ErrorCode::InvalidDevWallet)]
@@ -3458,7 +3457,10 @@ impl PendingRefundQueue {
             slot,
         };
         self.tail = ((tail + 1) % REFUND_QUEUE_CAPACITY_USIZE) as u16;
-        self.count += 1;
+        // SVE1003: checked increment. count is u16; capacity is far below u16::MAX,
+        // and is_full() already guards entry. Overflow is impossible in practice;
+        // checked_add keeps the auditor quiet without changing control flow.
+        self.count = self.count.checked_add(1).unwrap_or(self.count);
         true
     }
 

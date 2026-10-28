@@ -37,7 +37,7 @@ url = "https://api.apr.dev"
 cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
-# The ID law (CLAUDE.md "Program IDs are permanent"): these addresses are
+# The ID law ("Program IDs are permanent"): these addresses are
 # FIXED. Every deployment is an upgrade in place. Never regenerate a keypair
 # for a program listed here — the keypair IS the ID, and losing it loses the
 # address forever.

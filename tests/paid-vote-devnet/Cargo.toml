@@ -1,0 +1,43 @@
+# kots-contracts/tests/paid-vote-devnet/Cargo.toml
+#
+# Standalone, workspace-DETACHED package holding ONLY the devnet paid-vote
+# money-path proof (triage step 4). Split out of tests/devnet_idl_tests so it
+# does NOT pull in test_utils.rs — which cannot compile under a live-cluster
+# build (its ~100 `self.banks_client` / `self.context` sites are ungated, while
+# those fields are cfg'd out off the banks-client path). This package talks to
+# devnet directly and therefore needs NO `devnet-network` feature.
+#
+# Run:
+#   cd tests/paid-vote-devnet
+#   cargo test --no-run                    # compile check; no wallet needed
+#   export KOTS_DEVNET_VOTER_KEYPAIR=/path/to/funded-voter.json
+#   cargo test test_hieroglyph_payment_devnet -- --ignored --nocapture
+
+[package]
+name = "kots-paid-vote-devnet"
+version = "0.1.0"
+edition = "2021"
+description = "Standalone devnet integration proof for the KOTS paid-vote (execute_hieroglyph) money path"
+
+# Empty workspace table: detaches this package from the outer workspace so that
+# `cargo` invoked from this directory builds ONLY this package (this is the same
+# standalone pattern tests/devnet_idl_tests uses).
+[workspace]
+
+[dependencies]
+
+# Everything the proof needs is test-only (the lib is empty). Versions mirror the
+# parent tests crate (../Cargo.toml) EXACTLY so the path-dep programs resolve to
+# the same Solana crate versions — these must agree or the build won't link.
+[dev-dependencies]
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+solana-sdk = "2.3"
+solana-client = "2.3"
+solana-rpc-client = "2.3"
+spl-token = { version = "7.0.0", features = ["no-entrypoint"] }
+spl-token-2022 = { version = "6.0.0", features = ["no-entrypoint"] }
+spl-associated-token-account = { version = "6.0.0", features = ["no-entrypoint"] }
+tokio = { version = "1.0", features = ["full"] }
+
+voting-hieroglyph = { path = "../../programs/voting-hieroglyph" }
+kots-common = { path = "../../shared/kots-common" }

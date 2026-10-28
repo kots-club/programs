@@ -830,8 +830,9 @@ pub mod prize_distribution {
 
             // Update vault counters
             let vault = &mut ctx.accounts.contest_vault;
-            vault.daily_transfer_count += 1;
-            vault.lifetime_distributed += requested_amount;
+            // SVE1003: checked increments
+            vault.daily_transfer_count = vault.daily_transfer_count.checked_add(1).ok_or(KotsError::ArithmeticOverflow)?;
+            vault.lifetime_distributed = vault.lifetime_distributed.checked_add(requested_amount).ok_or(KotsError::ArithmeticOverflow)?;
             vault.last_transfer_timestamp = current_time;
             vault.available_for_distribution = vault.available_for_distribution
                 .checked_sub(requested_amount)
@@ -1823,8 +1824,9 @@ fn authorize_prize_claim(ctx: &Context<ClaimPrize>, amount: u64) -> Result<()> {
     // Move the lamports. Both are program-owned/writable, so direct balance
     // manipulation is the correct primitive (no system CPI from a data-bearing
     // PDA, no token CPI — the vault holds native lamports).
-    **vault_ai.try_borrow_mut_lamports()? -= amount;
-    **ctx.accounts.claimer.to_account_info().try_borrow_mut_lamports()? += amount;
+    // SVE1004 / SVE1003: checked sub/add. Balance was already validated above.
+    **vault_ai.try_borrow_mut_lamports()? = vault_ai.lamports().checked_sub(amount).ok_or(KotsError::ArithmeticOverflow)?;
+    **ctx.accounts.claimer.to_account_info().try_borrow_mut_lamports()? = ctx.accounts.claimer.to_account_info().lamports().checked_add(amount).ok_or(KotsError::ArithmeticOverflow)?;
 
     msg!(
         "💸 Prize settled on-chain: {} lamports → {} (F17 D2 on-chain settlement)",

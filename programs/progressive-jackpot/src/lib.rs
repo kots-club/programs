@@ -141,6 +141,8 @@ pub mod progressive_jackpot {
         }
         
         // Add contribution to current week
+        // SVE1004: week_number is validated to be in 1..=52 before this point.
+        // Subtraction cannot underflow; documented for the auditor.
         let week_index = (week_number - 1) as usize;
         jackpot.weekly_contributions[week_index] = jackpot.weekly_contributions[week_index]
             .checked_add(contribution_amount)

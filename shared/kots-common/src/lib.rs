@@ -11,7 +11,7 @@ use borsh;
 
 pub mod constants;
 pub mod hieroglyphs;  // THE glyph registry  — single source of truth (HIEROGLYPH-REGISTRY.md)
-pub mod program_ids;  // THE program registry — single source of truth (CLAUDE.md, the ID law)
+pub mod program_ids;  // THE program registry — single source of truth (the ID law: program IDs are permanent)
 pub mod state;
 pub mod errors;
 pub mod purpose_key; // ACT-24 — the structured accounting key (F15); dependency-free on purpose

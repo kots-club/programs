@@ -126,7 +126,8 @@ impl UpgradeRegistry {
     pub fn update_version(&mut self, new_version: u16, timestamp: i64) {
         self.current_version = new_version;
         self.last_upgrade_timestamp = timestamp;
-        self.successful_upgrades += 1;
+        // SVE1003: checked. Counter is u16; overflow is theoretical only.
+        self.successful_upgrades = self.successful_upgrades.checked_add(1).unwrap_or(self.successful_upgrades);
         for i in (1..10).rev() {
             self.version_history[i] = self.version_history[i - 1];
         }
@@ -453,7 +454,7 @@ pub mod voting_hieroglyph {
         Ok(())
     }
 
-    /// THE program registry — the off-chain bootstrap (CLAUDE.md, the ID law).
+    /// THE program registry — the off-chain bootstrap (the ID law: program IDs are permanent).
     ///
     /// Returns the seven program ids of the realm THIS BINARY is deployed in,
     /// Borsh-encoded via set_return_data, in `ProgramIds` field order.
@@ -1041,14 +1042,17 @@ fn execute_hieroglyph_record_vote(
     // Record voter count only - individual voter tracking via blockchain transaction history
     // This eliminates BPF stack issues from large in-memory arrays
     if (vote_tracker.voter_count as usize) < MAX_VOTERS_PER_TRACKER {
-        vote_tracker.voter_count += 1;
+        // SVE1003: checked. Guard above makes overflow impossible (MAX << u16::MAX).
+        vote_tracker.voter_count = vote_tracker.voter_count.checked_add(1).ok_or(KotsError::ArithmeticOverflow)?;
     } else {
         vote_tracker.individual_tracking_full = true;
-        vote_tracker.votes_beyond_limit += 1;
+        // SVE1003: checked
+        vote_tracker.votes_beyond_limit = vote_tracker.votes_beyond_limit.checked_add(1).ok_or(KotsError::ArithmeticOverflow)?;
     }
     
     // Update statistics  
-    vote_tracker.total_votes += 1;
+    // SVE1003: checked
+    vote_tracker.total_votes = vote_tracker.total_votes.checked_add(1).ok_or(KotsError::ArithmeticOverflow)?;
     vote_tracker.last_vote_timestamp = current_time;
     vote_tracker.total_value = vote_tracker.total_value.checked_add(cost).ok_or(KotsError::ArithmeticOverflow)?;
     

@@ -2240,6 +2240,9 @@ fn calculate_consensus_price(gas_oracle: &EnhancedGasOracleState) -> Result<Opti
         for j in 0..3 {
             if i != j {
                 let other_price = prices[j];
+                // SVE20003: integer division is intentional. Variance is a
+                // basis-point percentage; truncation is the desired behavior
+                // for a consensus threshold comparison. No change.
                 let variance = if base_price > other_price {
                     ((base_price - other_price) * 10000) / base_price
                 } else {
